@@ -1,15 +1,86 @@
-// script.js
+let currentData; // Declare currentData in a higher scope
 
-let currentData;
+// Add tooltips to data points
+function addTooltip(element, text) {
+    element.append('title').text(text);
+}
+
+// Visual feedback while loading data
+function showLoader() {
+    // Show loading indicator (You can implement this based on your UI framework)
+    console.log("Loading data...");
+}
+
+function hideLoader() {
+    // Hide loading indicator (You can implement this based on your UI framework)
+    console.log("Data loaded successfully!");
+}
+
+// Implement line chart
+// Implement line chart
+function createLineChart(svg, data, xScale, yScale) {
+    // Define line generator
+    const line = d3.line()
+        .x(d => xScale(d.Operator))
+        .y(d => yScale(d.Fatalities))
+        .curve(d3.curveLinear);
+
+    // Append path element for the line
+    svg.append('path')
+        .datum(data)
+        .attr('class', 'line')
+        .attr('d', line)
+        .attr('fill', 'none')
+        .attr('stroke', 'steelblue');
+}
+
+
+function createScatterPlot(svg, data, xScale, yScale) {
+    // Append circles for each data point
+    svg.selectAll(".dot")
+        .data(data)
+        .enter().append("circle")
+        .attr("class", "dot")
+        .attr("cx", d => xScale(d.Operator))
+        .attr("cy", d => yScale(d.Fatalities))
+        .attr("r", 5) // Radius of the circle
+        .style("fill", "steelblue"); // Color of the circles, change as needed
+}
+
+function filterData(data, criteria) {
+    // Implement data filtering based on criteria
+    // For example, filter data based on operator name
+    return data.filter(d => d.Operator === criteria);
+}
+
+// Make visualization responsive
+function makeResponsive() {
+    // Adjust visualization size and layout based on screen size
+    // You can use CSS media queries or other techniques to make it responsive
+    // Here's an example using CSS media queries
+    const svg = d3.select("svg");
+
+    // Get the container width
+    const containerWidth = svg.node().parentNode.clientWidth;
+
+    // Set the SVG width based on the container width
+    svg.attr("width", containerWidth);
+
+    // Update the visualization based on the new width
+    // For example, you may need to update scales, axes, etc.
+}
 
 // Entry point - Load and preprocess data
+showLoader();
 d3.csv('airplane_crashes.csv').then(data => {
-    currentData = data;
+    hideLoader();
+
+    currentData = data; // Assign data to currentData variable
 
     // Populate year dropdown with unique years
     const yearDropdown = document.getElementById('year');
     const uniqueYears = [...new Set(data.map(d => +d.Date))];
-    
+
     uniqueYears.forEach(year => {
         const option = document.createElement('option');
         option.value = year;
@@ -20,7 +91,7 @@ d3.csv('airplane_crashes.csv').then(data => {
     // Populate operator dropdown with unique operators
     const operatorDropdown = document.getElementById('operator');
     const uniqueOperators = [...new Set(data.map(d => d.Operator))];
-    
+
     uniqueOperators.forEach(operator => {
         const option = document.createElement('option');
         option.value = operator;
@@ -48,9 +119,7 @@ function updateVisualization() {
         const chartType = document.getElementById('chart-type').value;
 
         // Call the appropriate chart creation function based on user input
-
-
-        createChart(chartType, selectedYear, selectedOperator,selectedYear);
+        createChart(chartType, selectedYear, selectedOperator);
     } else {
         console.error('Year dropdown element not found.');
     }
@@ -105,15 +174,13 @@ function createChart(chartType, selectedYear, selectedOperator) {
             createBars(svg, aggregatedArray, xScale, yScale);
             break;
         case 'pie':
-            const pieData = aggregatedArray.map(d => ({
-                Operator: d.Operator,
-                value: d.Fatalities + d.Aboard
-            }));
-            const yearDropdown = document.getElementById('year');
-
-            // Check if the dropdown element exists
-                const selectedYear = +yearDropdown.value;
-            createPieChart(svg, pieData, width, height,selectedYear);
+            createPieChart(svg, aggregatedArray, width, height);
+            break;
+        case 'line':
+            createLineChart(svg, aggregatedArray, xScale, yScale);
+            break;
+        case 'scatter':
+            createScatterPlot(svg, aggregatedArray, xScale, yScale);
             break;
         // Add more cases for additional chart types
     }
@@ -178,27 +245,45 @@ function createBars(svg, data, xScale, yScale) {
     // Bar for Fatalities
     groupedBars.append('rect')
         .attr('class', 'bar fatalities')
-        .attr('x', 0)
+        .attr('x', d => xScale(d.Operator))
         .attr('y', d => yScale(d.Fatalities))
         .attr('width', xScale.bandwidth() / 2)
-        .attr('height', d => height - yScale(d.Fatalities))
-        .append('title')
-        .text(d => `Operator: ${d.Operator}\nFatalities: ${d.Fatalities}`);
+        .attr('height', d => yScale(0) - yScale(d.Fatalities))
+        .style('fill', 'steelblue');
 
     // Bar for Aboard
     groupedBars.append('rect')
         .attr('class', 'bar aboard')
-        .attr('x', xScale.bandwidth() / 2)
+        .attr('x', d => xScale(d.Operator) + xScale.bandwidth() / 2)
         .attr('y', d => yScale(d.Aboard))
         .attr('width', xScale.bandwidth() / 2)
-        .attr('height', d => height - yScale(d.Aboard))
-        .append('title')
-        .text(d => `Operator: ${d.Operator}\nAboard: ${d.Aboard}`);
+        .attr('height', d => yScale(0) - yScale(d.Aboard))
+        .style('fill', 'orange');
+
+    // Text labels for Fatalities
+    groupedBars.append('text')
+        .attr('class', 'bar-label fatalities-label')
+        .attr('x', d => xScale(d.Operator) + xScale.bandwidth() / 4) // Adjust x position
+        .attr('y', d => yScale(d.Fatalities) - 5) // Adjust y position
+        .text(d => `Fatalities: ${d.Fatalities}`) // Concatenate number and type
+        .style('text-anchor', 'middle')
+        .style('font-size', '12px');
+
+    // Text labels for Aboard
+    groupedBars.append('text')
+        .attr('class', 'bar-label aboard-label')
+        .attr('x', d => xScale(d.Operator) + xScale.bandwidth() * 3 / 4) // Adjust x position
+        .attr('y', d => yScale(d.Aboard) - 5) // Adjust y position
+        .text(d => `Aboard: ${d.Aboard}`) // Concatenate number and type
+        .style('text-anchor', 'middle')
+        .style('font-size', '12px');
 }
+
+
 // Function to create a pie chart
-function createPieChart(svg, data, width, height, selectedYear) {
+function createPieChart(svg, data, width, height) {
     const radius = Math.min(width, height) / 2;
-    const pie = d3.pie().value(d => d.value);
+    const pie = d3.pie().value(d => d.Fatalities + d.Aboard);
 
     const arc = d3.arc()
         .innerRadius(0)
@@ -215,63 +300,36 @@ function createPieChart(svg, data, width, height, selectedYear) {
     arcs.append('path')
         .attr('d', arc)
         .attr('fill', (d, i) => color(i))
-        .append('title')
-        .text(d => `Operator: ${d.data.Operator}\nAccidents: ${d.data.value}\nFatalities: ${d.data.Fatalities}\nAboard: ${d.data.Aboard}`);
+        .call(addTooltip, d => `Operator: ${d.data.Operator}\nAccidents: ${d.data.value}\nFatalities: ${d.data.Fatalities}\nAboard: ${d.data.Aboard}`);
 
     // Label placement
     const labelArc = d3.arc()
         .outerRadius(radius - 40)
         .innerRadius(radius - 40);
 
-    // Operator labels with total number of accidents for the selected year
+    // Operator labels
     arcs.append('text')
         .attr('transform', d => `translate(${labelArc.centroid(d)})`)
         .attr('dy', '.35em')
-        .text(d => {
-            const filteredData = filterDataByOperatorAndYear(currentData, d.data.Operator, selectedYear);
-            const totalAccidents = filteredData.length;
-            return `${d.data.Operator}\n(${totalAccidents} accident${totalAccidents !== 1 ? 's' : ''})`;
-        })
+        .text(d => d.data.Operator)
         .style('text-anchor', 'middle')
         .style('font-size', '10px');
 
-    // Legend
-    const legend = svg.selectAll('.legend')
-        .data(data)
-        .enter()
-        .append('g')
-        .attr('class', 'legend')
-        .attr('transform', (d, i) => `translate(${width - 100},${i * 20})`);
-
-    legend.append('rect')
-        .attr('x', 0)
-        .attr('width', 18)
-        .attr('height', 18)
-        .attr('fill', (d, i) => color(i));
-
-    legend.append('text')
-        .attr('x', 25)
-        .attr('y', 9)
+    // Add text for Fatalities and Aboard
+    arcs.append('text')
+        .attr('class', 'arc-label fatalities-label')
+        .attr('transform', d => `translate(${arc.centroid(d)})`)
         .attr('dy', '.35em')
-        .style('text-anchor', 'start')
-        .text(d => `${d.Operator} - ${d.value}`);
+        .text(d => `Fatalities: ${d.data.Fatalities}`)
+        .style('text-anchor', 'middle');
+
+    arcs.append('text')
+        .attr('class', 'arc-label aboard-label')
+        .attr('transform', d => `translate(${arc.centroid(d)})`)
+        .attr('dy', '1.5em')
+        .text(d => `Aboard: ${d.data.Aboard}`)
+        .style('text-anchor', 'middle');
 }
-
-// Function to filter data by operator and year
-function filterDataByOperatorAndYear(data, operator, year) {
-    return data.filter(d => d.Operator === operator && new Date(d.Date).getFullYear() === parseInt(year, 10));
-}
-
-
-// Function to filter data by operator
-function filterDataByOperator(data, operator) {
-    return data.filter(d => d.Operator === operator);
-}
-
-
-
-
-
 // Function to add labels
 function createLabels(svg, width, height, margin, xLabel, yLabel) {
     // X-axis label

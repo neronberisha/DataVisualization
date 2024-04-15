@@ -1,21 +1,23 @@
+body {
+  font-family: Arial, sans-serif;
+  margin: 0;
+  padding: 0;
+}
+
+#visualization {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 20px;
+}
+
 #controls {
-    margin-bottom: 40px;
-  }
-  
-  .bar {
-    fill: steelblue;
-  }
-  
-  .pie-arc {
-    stroke: #fff;
-    stroke-width: 2;
-  }
-  
-  .fatalities-crew {
-    fill: steelblue;
-  }
-  
-  .aboard-crew {
-    fill: darkorange;
-  }
-  
+  margin-bottom: 20px;
+}
+
+#controls label {
+  margin-right: 10px;
+}
+
+#chart {
+  border: 1px solid #ccc;
+}
